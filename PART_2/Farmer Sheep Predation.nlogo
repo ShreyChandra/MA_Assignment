@@ -14,11 +14,11 @@ to setup
     ;ask patches [
     ;  set pcolor one-of [ green brown ]
     ask patches [
-    if pycor > 7
+    if pycor > 5
       [ set pcolor one-of [ green black ]]
-    if pycor < 8 and pycor > -8
+    if pycor < 6 and pycor > -8
       [set pcolor one-of [ blue black ]]
-    if pycor < -7 and pycor > -25
+    if pycor < -6
       [set pcolor one-of [ yellow black ]]
     if pcolor = black;green or pcolor = blue or pcolor = yellow
         [ set countdown grass-regrowth-time ]
@@ -129,15 +129,15 @@ end
 to grow-grass  ; patch procedure
   ; countdown on brown patches: if you reach 0, grow some grass
   if pcolor = black [
-    ifelse countdown <= 0 and pycor > 7
+    ifelse countdown <= 0 and pycor > 5
       [ set pcolor green
         set countdown grass-regrowth-time ]
       [ set countdown countdown - 1 ]
-    ifelse countdown <= 0 and pycor < 8 and pycor > -8
+    ifelse countdown <= 0 and pycor < 6 and pycor > -8
       [ set pcolor blue
         set countdown grass-regrowth-time ]
       [ set countdown countdown - 1 ]
-    ifelse countdown <= 0 and pycor < -7 and pycor > -25
+    ifelse countdown <= 0 and pycor < -6
       [ set pcolor yellow
         set countdown grass-regrowth-time ]
       [ set countdown countdown - 1 ]
@@ -421,7 +421,7 @@ SWITCH
 243
 part_3_orange_switch
 part_3_orange_switch
-1
+0
 1
 -1000
 
