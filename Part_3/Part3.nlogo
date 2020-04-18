@@ -1,36 +1,75 @@
-globals [ max-sheep ]  ; don't let the sheep population grow too large
+globals [ max-sheep farmerA farmerB ]  ; don't let the sheep population grow too large
 
 ; Sheep is a breed of turtles
 breed [ sheep a-sheep ]  ; sheep is its own plural, so we use "a-sheep" as the singular
+breed [ farmers farmer ]
 
-turtles-own [ energy ]       ; sheep have energy
+turtles-own [ sheepowner energy ]       ; sheep have energy
 
-patches-own [ countdown ]
+patches-own [ landowner countdown alive? ]
 
 to setup
   clear-all
-  ifelse netlogo-web? [ set max-sheep 10000 ] [ set max-sheep 30000 ]
+  set max-sheep 30000
+
+  create-farmers 2
+  set farmerA farmer 0
+  set farmerB farmer 1
+
+
+  ; divide the world between Farmer A, Farmer B, and a shared area
+  let one-third floor (world-height / 3)
+  ask patches [
+    ifelse pycor > max-pycor - one-third
+    [ set landowner "A" ]
+    [
+      ifelse pycor < min-pycor + one-third
+      [ set landowner "B" ]
+      [ set landowner "" ]
+    ]
+  ]
 
   ; each grass' state of growth and growing logic need to be set up
   ask patches [
-    set pcolor one-of [ green brown ]
-    ifelse pcolor = green
+    set alive? one-of [ false true ]
+    ifelse alive?
     [ set countdown grass-regrowth-time ]
     [ set countdown random grass-regrowth-time ] ; initialize grass regrowth clocks randomly for brown patches
+    update-pcolor
   ]
 
-  create-sheep initial-number-sheep  ; create the sheep, then initialize their variables
+  create-sheep initial-number-sheep-each  ; create the sheep, then initialize their variables
   [
-    set shape  "sheep"
-    set color white
+    set shape "sheep"
+    set sheepowner "A"
+    set color green + 1
     set size 1.5  ; easier to see
     set label-color blue - 2
     set energy random (2 * sheep-gain-from-food)
-    setxy random-xcor random-ycor
+    move-to one-of patches with [ landowner = "A" ]
+  ]
+  create-sheep initial-number-sheep-each  ; create the sheep, then initialize their variables
+  [
+    set shape "sheep"
+    set sheepowner "B"
+    set color yellow + 1
+    set size 1.5  ; easier to see
+    set label-color blue - 2
+    set energy random (2 * sheep-gain-from-food)
+    move-to one-of patches with [ landowner = "B" ]
   ]
 
   display-labels
   reset-ticks
+end
+
+to update-pcolor  ; patch procedure
+  let base-color blue
+  if landowner = "A" [ set base-color green ]
+  if landowner = "B" [ set base-color yellow ]
+  let color-offset -4
+  if alive? [ set color-offset -2 ]
+  set pcolor (base-color + color-offset)
 end
 
 to go
@@ -55,16 +94,32 @@ to go
   display-labels
 end
 
+to-report valid-patch? [ target ]
+  if target = nobody [ report false ]
+  let owner ([landowner] of target)
+  if owner = "" [
+    if sheepowner = "A" [ report A-can-use? ]
+    if sheepowner = "B" [ report B-can-use? ]
+  ]
+  report owner = sheepowner
+end
+
 to move  ; turtle procedure
   rt random 50
   lt random 50
+
+  if not valid-patch? patch-ahead 1
+  [ rt 180 ]  ; if a sheep can't move forward, it turns around
   fd 1
+
+  if not valid-patch? patch-here [ die ]  ; the sheep isn't allowed to be here :(
 end
 
 to eat-grass  ; sheep procedure
   ; sheep eat grass and turn the patch brown
-  if pcolor = green [
-    set pcolor brown
+  if alive? [
+    set alive? false
+    update-pcolor
     set energy energy + sheep-gain-from-food  ; sheep gain energy by eating
   ]
 end
@@ -83,16 +138,17 @@ end
 
 to grow-grass  ; patch procedure
   ; countdown on brown patches: if you reach 0, grow some grass
-  if pcolor = brown [
+  if not alive? [
     ifelse countdown <= 0
-      [ set pcolor green
+      [ set alive? true
+        update-pcolor
         set countdown grass-regrowth-time ]
       [ set countdown countdown - 1 ]
   ]
 end
 
 to-report grass
-  report patches with [pcolor = green]
+  report patches with [alive?]
 end
 
 
@@ -110,19 +166,19 @@ end
 GRAPHICS-WINDOW
 355
 10
-873
-529
+903
+559
 -1
 -1
-10.0
+5.0
 1
 14
 1
 1
 1
 0
-1
-1
+0
+0
 1
 -25
 25
@@ -137,13 +193,13 @@ ticks
 SLIDER
 5
 60
-179
+247
 93
-initial-number-sheep
-initial-number-sheep
+initial-number-sheep-each
+initial-number-sheep-each
 0
 250
-100.0
+41.0
 1
 1
 NIL
@@ -195,9 +251,9 @@ NIL
 HORIZONTAL
 
 BUTTON
-40
+5
 140
-109
+74
 173
 setup
 setup
@@ -212,9 +268,9 @@ NIL
 1
 
 BUTTON
-115
+175
 140
-190
+250
 173
 go
 go
@@ -286,6 +342,45 @@ SWITCH
 303
 show-energy?
 show-energy?
+1
+1
+-1000
+
+BUTTON
+80
+140
+167
+173
+go once
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+SWITCH
+940
+235
+1072
+268
+A-can-use?
+A-can-use?
+1
+1
+-1000
+
+SWITCH
+940
+295
+1072
+328
+B-can-use?
+B-can-use?
 1
 1
 -1000
