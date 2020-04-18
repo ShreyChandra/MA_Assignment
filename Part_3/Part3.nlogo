@@ -1,33 +1,39 @@
-globals [ max-sheep farmerA farmerB ]  ; don't let the sheep population grow too large
+globals [ max-sheep farmer-A farmer-B farmer-shared ]  ; don't let the sheep population grow too large
 
 ; Sheep is a breed of turtles
 breed [ sheep a-sheep ]  ; sheep is its own plural, so we use "a-sheep" as the singular
 breed [ farmers farmer ]
 
-turtles-own [ sheepowner energy ]       ; sheep have energy
-
+sheep-own [ sheepowner energy ]       ; sheep have energy
 patches-own [ landowner countdown alive? ]
 
 to setup
   clear-all
   set max-sheep 30000
 
-  create-farmers 2
-  set farmerA farmer 0
-  set farmerB farmer 1
-
+  set-default-shape farmers "person"
+  create-farmers 3
+  set farmer-A farmer 0
+  set farmer-B farmer 1
+  set farmer-shared farmer 2
+  ask farmer-A [set color sky]
+  ask farmer-B [set color orange]
+  ask farmer-shared [set color green]
 
   ; divide the world between Farmer A, Farmer B, and a shared area
   let one-third floor (world-height / 3)
   ask patches [
     ifelse pycor > max-pycor - one-third
-    [ set landowner "A" ]
+    [ set landowner farmer-A ]
     [
       ifelse pycor < min-pycor + one-third
-      [ set landowner "B" ]
-      [ set landowner "" ]
+      [ set landowner farmer-B ]
+      [ set landowner farmer-shared ]
     ]
   ]
+  ask farmer-A [ move-to one-of patches with [ landowner = farmer-A ] ]
+  ask farmer-B [ move-to one-of patches with [ landowner = farmer-B ] ]
+  ask farmer-shared [ hide-turtle ]
 
   ; each grass' state of growth and growing logic need to be set up
   ask patches [
@@ -38,38 +44,30 @@ to setup
     update-pcolor
   ]
 
-  create-sheep initial-number-sheep-each  ; create the sheep, then initialize their variables
-  [
-    set shape "sheep"
-    set sheepowner "A"
-    set color green + 1
-    set size 1.5  ; easier to see
-    set label-color blue - 2
-    set energy random (2 * sheep-gain-from-food)
-    move-to one-of patches with [ landowner = "A" ]
-  ]
-  create-sheep initial-number-sheep-each  ; create the sheep, then initialize their variables
-  [
-    set shape "sheep"
-    set sheepowner "B"
-    set color yellow + 1
-    set size 1.5  ; easier to see
-    set label-color blue - 2
-    set energy random (2 * sheep-gain-from-food)
-    move-to one-of patches with [ landowner = "B" ]
-  ]
+  create-flock-for farmer-A
+  create-flock-for farmer-B
 
   display-labels
   reset-ticks
 end
 
+to create-flock-for [ owner ]
+  create-sheep initial-number-sheep-each  ; create the sheep, then initialize their variables
+  [
+    set shape "sheep"
+    set sheepowner owner
+    set color ([color] of owner) + 1
+    set size 1.5  ; easier to see
+    set label-color blue - 2
+    set energy random (2 * sheep-gain-from-food)
+    move-to one-of patches with [ landowner = owner ]
+  ]
+end
+
 to update-pcolor  ; patch procedure
-  let base-color blue
-  if landowner = "A" [ set base-color green ]
-  if landowner = "B" [ set base-color yellow ]
   let color-offset -4
   if alive? [ set color-offset -2 ]
-  set pcolor (base-color + color-offset)
+  set pcolor ([color] of landowner + color-offset)
 end
 
 to go
@@ -97,9 +95,9 @@ end
 to-report valid-patch? [ target ]
   if target = nobody [ report false ]
   let owner ([landowner] of target)
-  if owner = "" [
-    if sheepowner = "A" [ report A-can-use? ]
-    if sheepowner = "B" [ report B-can-use? ]
+  if owner = farmer-shared [
+    if sheepowner = farmer-A [ report A-can-use? ]
+    if sheepowner = farmer-B [ report B-can-use? ]
   ]
   report owner = sheepowner
 end
@@ -199,7 +197,7 @@ initial-number-sheep-each
 initial-number-sheep-each
 0
 250
-41.0
+75.0
 1
 1
 NIL
