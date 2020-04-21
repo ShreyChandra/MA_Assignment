@@ -1,29 +1,22 @@
 breed [ sheepWhite a-sheepW ]  ; sheeps for Farmer A
 breed [ sheepOrange a-sheepO ]; sheeps for Farmer B
-turtles-own [ energy ]       ; both wolves and sheep have energy
-patches-own [ countdown ]    ; this is for the sheep-wolves-grass model version
+turtles-own [ energy ]       ; sheeps have energy
+patches-own [ countdown ]    ; countown varaiable used for grass regrowth
 
 to setup
   clear-all
-  ;ifelse netlogo-web? [ set max-sheep 10000 ] [ set max-sheep 40 ]
-
-  ; Check model-version switch
-  ; if we're not modeling grass, then the sheep don't need to eat to survive
-  ; otherwise each grass' state of growth and growing logic need to be set up
-  if model-version = "sheep-wolves-grass" [
-    ;ask patches [
-    ;  set pcolor one-of [ green brown ]
-    ask patches [
-    if pycor > 5
-      [ set pcolor one-of [ green black ]]
-    if pycor < 6 and pycor > -8
-      [set pcolor one-of [ blue black ]]
-    if pycor < -6
-      [set pcolor one-of [ yellow black ]]
-    if pcolor = black;green or pcolor = blue or pcolor = yellow
-        [ set countdown grass-regrowth-time ]
-     ; [ set countdown grass-regrowth-time ] ; initialize grass regrowth clocks randomly for brown patches
-    ]
+  ; setting color of grass for the 3 fields
+  ; in a field grass can either be of color meaning there is grass on the patch
+  ; or the grass can be black meaning there is no grass on that patch
+  ask patches [
+    if pycor > 8
+      [ set pcolor one-of [ green 53  ]]
+    if pycor < 9 and pycor > -9
+      [set pcolor one-of [ yellow 43 ]]
+    if pycor < -8
+      [set pcolor one-of [ blue 103 ]]
+    if pcolor = black;
+        [ set countdown random grass-regrowth-time ] ;initialize grass regrowth clocks randomly for black patches
   ]
 
 
@@ -31,54 +24,53 @@ to setup
   create-sheepWhite initial-number-sheep  ; create the sheep, then initialize their variables
   [
     set shape  "sheep"
-    set color white
-    set size 2  ; easier to see
+    set color white ; for farmer A sheeps are of white color
+    set size 2
     set label-color blue - 2
-    set energy random (2 * sheep-gain-from-food)
-    setxy random-xcor random-ycor
+    set energy random (2 * sheep-gain-from-food) ; start of with random energy
+    setxy random-xcor 14
   ]
   reset-ticks
   create-sheepOrange initial-number-sheep  ; create the sheep, then initialize their variables
   [
     set shape  "sheep"
-    set color orange
-    set size 2  ; easier to see
+    set color orange ; for farmer B sheeps are of orange color
+    set size 2
     set label-color blue - 2
-    set energy random (2 * sheep-gain-from-food)
-    setxy random-xcor random-ycor
+    set energy random (2 * sheep-gain-from-food) ; start of with random energy
+    setxy random-xcor -15
   ]
   reset-ticks
 end
 
 to go
-  if count sheepWhite > max-sheep-farmerA [ user-message "Optimum no. of sheeps attained(FarmerA)" stop ]
-  if count sheepWhite = 0 [ user-message "All sheeps starved to death(FarmerA)" stop ]
-  if count sheepOrange > max-sheep-farmerB [ user-message "Optimum no. of sheeps attained(FarmerB)" stop ]
-  if count sheepOrange = 0 [ user-message "All sheeps starved to death(FarmerB)" stop ]
+  if count sheepWhite = 0 [ user-message "All sheeps starved to death(FarmerA)" stop ] ; message if all the white sheeps die
+  if count sheepOrange = 0 [ user-message "All sheeps starved to death(FarmerB)" stop ] ; message if all the orange sheeps die
+  ask sheepWhite [ if[pcolor] of patch-ahead 1 = blue or [pcolor] of patch-ahead 1 = blue - 2 [set heading heading - 100]] ; white sheeps avoid going to blue patches or grass
+  if part_3_white_switch = false [ask sheepWhite [if[pcolor] of patch-ahead 1 = yellow or [pcolor] of patch-ahead 1 = yellow - 2 [set heading heading - 100]]] ;white sheeps can avoid going to yellow patches or the shared grass grass when part 3 switch is off
   ask sheepWhite [
-    move
-    ; in this version, sheep eat grass, grass grows, and it costs sheep energy to move
-    if model-version = "sheep-wolves-grass" [
-      set energy energy - 1  ; deduct energy for sheep only if running sheep-wolves-grass model version
-      eat-grass-white  ; sheep eat grass only if running the sheep-wolves-grass model version
-      death ; sheep die from starvation only if running the sheep-wolves-grass model version
+    move; sheep eat grass, grass grows, and it costs sheep energy to move
+    set energy energy - 1  ; deduct energy for sheep
+    eat-grass-white  ; sheep eat grass
+    death ; sheep die from starvation
+    if count sheepWhite < max-sheep-farmerA [
+      reproduce-sheep  ; sheep reproduce at a random rate governed by a slider
     ]
-
-    reproduce-sheep  ; sheep reproduce at a random rate governed by a slider
   ]
+
+  ask sheepOrange [ if[pcolor] of patch-ahead 1 = green or [pcolor] of patch-ahead 1 = green - 2[set heading heading - 100]] ; Orange sheeps avoid going to green patches or grass
+  if part_3_orange_switch = false [ask sheepOrange [if[pcolor] of patch-ahead 1 = yellow or [pcolor] of patch-ahead 1 = yellow - 2[set heading heading - 100]]] ;Orange sheeps avoid going to yellow patches or the shared grass grass when part 3 switch is off
   ask sheepOrange [
-    move
-    ; in this version, sheep eat grass, grass grows, and it costs sheep energy to move
-    if model-version = "sheep-wolves-grass" [
-      set energy energy - 1  ; deduct energy for sheep only if running sheep-wolves-grass model version
-      eat-grass-orange ; sheep eat grass only if running the sheep-wolves-grass model version
-      death ; sheep die from starvation only if running the sheep-wolves-grass model version
+    move; sheep eat grass, grass grows, and it costs sheep energy to move
+    set energy energy - 1  ; deduct energy
+    eat-grass-orange ; sheep eat grass
+    death ; sheep die from starvation
+    if count sheepOrange < max-sheep-farmerB[
+      reproduce-sheep  ; sheep reproduce at a random rate governed by a slider
     ]
-
-    reproduce-sheep  ; sheep reproduce at a random rate governed by a slider
   ]
 
-  if model-version = "sheep-wolves-grass" [ ask patches [ grow-grass ] ]
+  ask patches [ grow-grass ]
 
   tick
   display-labels
@@ -91,97 +83,84 @@ to move  ; turtle procedure
 end
 
 to eat-grass-white  ; sheep procedure
-  ; sheep eat grass and turn the patch brown
+  ; sheep eat grass and turn the patch black
   if pcolor = green [
-    set pcolor black
+    set pcolor green - 2
     set energy energy + sheep-gain-from-food  ; sheep gain energy by eating
   ]
-  if pcolor = yellow and part_3_white_switch[
-    set pcolor black
-    set energy energy + sheep-gain-from-food  ; sheep gain energy by eating
+  if pcolor = yellow and part_3_white_switch[ ; this is used to allow the white sheeps to graze on field 3
+    set pcolor yellow - 2
+    set energy energy + sheep-gain-from-food
   ]
 end
 
 to eat-grass-orange  ; sheep procedure
   ; sheep eat grass and turn the patch brown
   if pcolor = blue [
-    set pcolor black
+    set pcolor blue - 2
     set energy energy + sheep-gain-from-food  ; sheep gain energy by eating
   ]
-  if pcolor = yellow and part_3_orange_switch[
-    set pcolor black
-    set energy energy + sheep-gain-from-food  ; sheep gain energy by eating
+  if pcolor = yellow and part_3_orange_switch[ ; this is used to allow the orange sheeps to graze on field 3
+    set pcolor yellow - 2
+    set energy energy + sheep-gain-from-food
   ]
 end
 
 to reproduce-sheep  ; sheep procedure
-  if energy > sheep-reproduce [  ; replaced the logic with a simple reporduction threshold limit
+  if energy > sheep-reproduce [  ; Reproduction rule: if the enegry of a sheep crosses a certain threshold value it shall reproduce( i.e. break into two)
     set energy (energy / 2)                ; divide energy between parent and offspring
     hatch 1 [ rt random-float 360 fd 1 ]   ; hatch an offspring and move it forward 1 step
   ]
 end
 
-to death  ; turtle procedure (i.e. both wolf and sheep procedure)
+to death  ; sheep procedure
   ; when energy dips below zero, die
   if energy < 0 [ die ]
 end
 
 to grow-grass  ; patch procedure
-  ; countdown on brown patches: if you reach 0, grow some grass
-  if pcolor = black [
-    ifelse countdown <= 0 and pycor > 5
+  ; countdown on black patches: if you reach 0, grow grass on that patch (i.e. restore color)
+  if pcolor = yellow - 2 or pcolor = blue - 2 or pcolor = green - 2[
+    ifelse countdown <= 0 and pycor > 8
       [ set pcolor green
         set countdown grass-regrowth-time ]
       [ set countdown countdown - 1 ]
-    ifelse countdown <= 0 and pycor < 6 and pycor > -8
-      [ set pcolor blue
+    ifelse countdown <= 0 and pycor < 9 and pycor > -9
+      [ set pcolor yellow
         set countdown grass-regrowth-time ]
       [ set countdown countdown - 1 ]
-    ifelse countdown <= 0 and pycor < -6
-      [ set pcolor yellow
+    ifelse countdown <= 0 and pycor < -8
+      [ set pcolor blue
         set countdown grass-regrowth-time ]
       [ set countdown countdown - 1 ]
   ]
 end
 
 to-report grassgreen
-  ifelse model-version = "sheep-wolves-grass" [
-    report patches with [pcolor = green]
-  ]
-  [ report 0 ]
+  report patches with [pcolor = green]
 end
 
 to-report grassblue
-  ifelse model-version = "sheep-wolves-grass" [
-    report patches with [pcolor = blue]
-  ]
-  [ report 0 ]
+  report patches with [pcolor = blue]
 end
 to-report grassyellow
-  ifelse model-version = "sheep-wolves-grass" [
-    report patches with [pcolor = yellow]
-  ]
-  [ report 0 ]
+  report patches with [pcolor = yellow]
 end
 
 
 to display-labels
   ask turtles [ set label "" ]
   if show-energy? [
-    if model-version = "sheep-wolves-grass" [ ask sheepWhite [ set label round energy ] ]
-    if model-version = "sheep-wolves-grass" [ ask sheepOrange [ set label round energy ] ]
+    ask sheepWhite [ set label round energy ]
+    ask sheepOrange [ set label round energy ]
   ]
 end
-
-
-; Copyright 1997 Uri Wilensky.
-; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
 505
 10
 1012
-335
+518
 -1
 -1
 10.2
@@ -196,8 +175,8 @@ GRAPHICS-WINDOW
 1
 -24
 24
--15
-15
+-24
+24
 1
 1
 1
@@ -205,25 +184,25 @@ ticks
 30.0
 
 SLIDER
-5
-60
-179
-93
+10
+20
+184
+53
 initial-number-sheep
 initial-number-sheep
 0
 250
-46.0
+14.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-5
-196
-179
-229
+10
+156
+184
+189
 sheep-gain-from-food
 sheep-gain-from-food
 0.0
@@ -235,40 +214,40 @@ NIL
 HORIZONTAL
 
 SLIDER
-5
-231
-179
-264
+10
+191
+184
+224
 sheep-reproduce
 sheep-reproduce
 1.0
 20.0
-20.0
+12.0
 1.0
 1
-%
+NIL
 HORIZONTAL
 
 SLIDER
-5
-100
-217
-133
+10
+60
+222
+93
 grass-regrowth-time
 grass-regrowth-time
 0
 1000
-203.0
+112.0
 1
 1
 NIL
 HORIZONTAL
 
 BUTTON
-5
-140
-74
-173
+10
+100
+79
+133
 setup
 setup
 NIL
@@ -282,10 +261,10 @@ NIL
 1
 
 BUTTON
-95
-140
-170
-173
+100
+100
+175
+133
 go
 go
 T
@@ -299,11 +278,11 @@ NIL
 0
 
 PLOT
-10
-360
-350
-530
-populations
+15
+320
+355
+490
+population
 time
 pop.
 0.0
@@ -316,15 +295,15 @@ true
 PENS
 "sheep(A)" 1.0 0 -16777216 true "" "plot count sheepWhite"
 "sheep(B)" 1.0 0 -955883 true "" "plot count sheepOrange"
-"grassgreen" 1.0 0 -11085214 true "" "if model-version = \"sheep-wolves-grass\" [ plot count grassgreen / 4 ]"
-"grassblue" 1.0 0 -13345367 true "" "if model-version = \"sheep-wolves-grass\" [ plot count grassblue / 4 ]"
-"grassyellow" 1.0 0 -4079321 true "" "if model-version = \"sheep-wolves-grass\" [ plot count grassyellow / 4 ]"
+"grassgreen" 1.0 0 -13840069 true "" "plot count grassgreen / 4 "
+"grassblue" 1.0 0 -14454117 true "" "plot count grassblue / 4 "
+"grassyellow" 1.0 0 -4079321 true "" "plot count grassyellow / 4 "
 
 MONITOR
-41
-308
-138
-353
+46
+268
+143
+313
 White sheep(A)
 count sheepWhite
 3
@@ -332,10 +311,10 @@ count sheepWhite
 11
 
 MONITOR
-191
-308
-298
-353
+196
+268
+303
+313
 Orange Sheep(B)
 count sheepOrange
 0
@@ -343,71 +322,61 @@ count sheepOrange
 11
 
 TEXTBOX
-20
-178
-160
-196
+25
+138
+165
+156
 Sheep settings
 11
 0.0
 0
 
 SWITCH
-5
-270
-141
-303
+10
+230
+146
+263
 show-energy?
 show-energy?
-1
+0
 1
 -1000
 
-CHOOSER
-5
-10
-350
-55
-model-version
-model-version
-"sheep-wolves" "sheep-wolves-grass"
-1
-
 SLIDER
-290
-95
-462
-128
+295
+55
+467
+88
 max-sheep-farmerA
 max-sheep-farmerA
 20
 1000
-460.0
+120.0
 10
 1
 NIL
 HORIZONTAL
 
 SLIDER
-290
-255
-462
-288
+295
+215
+467
+248
 max-sheep-farmerB
 max-sheep-farmerB
 20
 1000
-460.0
+120.0
 10
 1
 NIL
 HORIZONTAL
 
 SWITCH
-290
-140
-457
-173
+295
+100
+462
+133
 part_3_white_switch
 part_3_white_switch
 0
@@ -415,10 +384,10 @@ part_3_white_switch
 -1000
 
 SWITCH
-290
-210
-467
-243
+295
+170
+472
+203
 part_3_orange_switch
 part_3_orange_switch
 0
@@ -426,20 +395,20 @@ part_3_orange_switch
 -1000
 
 TEXTBOX
-290
-75
-440
-93
+295
+35
+445
+53
 Farmer A settings
 11
 0.0
 1
 
 TEXTBOX
-290
-190
-440
-208
+295
+150
+445
+168
 Farmer B settings
 11
 0.0
